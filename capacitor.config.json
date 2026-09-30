@@ -1,0 +1,8 @@
+{
+  "appId": "com.sasil.flowpromptmanager",
+  "appName": "Flow Prompt Manager",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "flow-prompt-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Flow Prompt Manager Android wrapper",
+  "scripts": {
+    "android:build": "npx cap sync android && cd android && chmod +x gradlew && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
+    "@capacitor/android": "^7.4.3"
+  }
+}

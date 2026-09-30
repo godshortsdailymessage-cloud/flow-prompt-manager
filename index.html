@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f171c">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Flow Prompt Manager</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#0f171c; --panel:#152128; --panel2:#1c2b33; --line:#2a3b44;
+  --text:#e8eeea; --dim:#8b9ea6; --amber:#f0b445; --amber-ink:#2a1d00; --green:#5fc79a;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+}
+*{box-sizing:border-box;transition:none!important;animation:none!important;scroll-behavior:auto!important;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans)}
+button{font-family:inherit;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+/* top bar (the only sticky part at the top) */
+.topbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;border-bottom:1px solid var(--line)}
+.topbar .row{display:flex;justify-content:space-between;align-items:baseline;max-width:850px;margin:0 auto}
+.topbar h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.2px}
+.topbar .count{font-size:14px;white-space:nowrap;color:var(--dim);font-variant-numeric:tabular-nums}
+.topbar .count b{color:var(--text);font-size:15px}
+.bar{height:6px;background:var(--panel2);border-radius:6px;margin:9px auto 0;max-width:850px;overflow:hidden}
+#bar{height:100%;width:0;background:var(--green)}
+
+main{padding:14px 12px 130px;max-width:850px;margin:auto}
+.hint{color:var(--dim);font-size:13px;margin:0 2px 12px;line-height:1.4}
+
+/* tools */
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.search{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:0 14px;min-height:46px;font-size:15px;font-family:var(--sans);margin-bottom:10px}
+.search::placeholder{color:var(--dim)}
+.chip{min-height:44px;padding:0 14px;border-radius:10px;background:var(--panel2);color:var(--text);font-size:14px;font-weight:600;border:1px solid var(--line)}
+.chip.main{border-color:var(--amber);color:var(--amber)}
+.chip.on{background:var(--text);color:var(--bg)}
+.chip:active,.btn:active{transform:scale(.97)}
+#pdfInfo{font-size:12.5px;color:var(--dim);margin:6px 2px 0}
+#pdfMsg{font-size:12.5px;color:var(--text);margin:2px 2px 12px;min-height:1em}
+
+/* jump panel */
+#jump{display:none;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:14px}
+#jump.open{display:block}
+#jump h2{font-size:13px;font-weight:600;color:var(--dim);margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cell{min-height:52px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:6px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.cell span{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.cell small{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+.cell.part{border-color:var(--amber)} .cell.full{background:#1b3a30;border-color:var(--green)}
+.cell.full small{color:var(--green)}
+
+/* prompt cards */
+.card{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;scroll-margin-top:76px}
+.card.copied{border-left-color:var(--amber)} .card.finished{border-left-color:var(--green)}
+.card.flash{outline:2px solid var(--amber)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.num{font-size:30px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.num small{font-size:12px;color:var(--dim);font-weight:600;margin-right:6px}
+.status{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--dim);font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--line)}
+.copied .dot{background:var(--amber)} .copied .status{color:var(--amber)}
+.finished .dot{background:var(--green)} .finished .status{color:var(--green)}
+.txt{font-family:var(--serif);font-size:16px;line-height:1.55;margin:0 0 12px;white-space:pre-wrap;word-break:break-word;-webkit-user-select:text;user-select:text}
+.finished .txt{color:var(--dim)}
+details{margin:-4px 0 12px}
+summary{color:var(--dim);font-size:13px;font-weight:600;padding:8px 0;list-style:none;cursor:pointer}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"＋ "} details[open] summary::before{content:"－ "}
+.tail{color:var(--dim);font-size:14.5px;margin:0}
+.actions{display:flex;gap:8px}
+.btn{min-height:46px;border-radius:10px;font-size:14px;font-weight:700;padding:0 6px;flex:1;white-space:nowrap}
+.btn.copy{background:var(--amber);color:var(--amber-ink);flex:1.3}
+.btn.flow{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.btn.fin{background:transparent;color:var(--green);border:1px solid var(--green)}
+.finished .btn.fin{background:var(--green);color:#08251a}
+.empty{text-align:center;color:var(--dim);padding:36px 10px}
+footer{color:#5f727a;text-align:center;font-size:12px;padding:8px 0 0}
+
+/* bottom action bar */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--panel);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+.dock .in{display:flex;gap:10px;align-items:center;max-width:850px;margin:0 auto}
+.up{width:46px;min-height:50px;border-radius:10px;background:var(--panel2);color:var(--text);border:1px solid var(--line);font-size:18px}
+.lab{flex:1;text-align:left;background:none;color:var(--text);padding:0;min-width:0}
+.lab small{display:block;font-size:12px;color:var(--dim);font-weight:600}
+.lab b{font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lab small{white-space:nowrap}
+.go{min-height:50px;padding:0 14px;white-space:nowrap;flex-shrink:0;border-radius:10px;font-size:15px;font-weight:800;background:var(--amber);color:var(--amber-ink)}
+.go.fin{background:var(--green);color:#08251a}
+.go[disabled]{background:var(--panel2);color:var(--dim)}
+
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--text);color:var(--bg);border-radius:10px;padding:10px 14px;font-size:14px;font-weight:600;max-width:90%;text-align:center;display:none;z-index:10}
+#toast.show{display:block}
+</style></head>
+<body>
+<div class="topbar">
+  <div class="row"><h1>⚡ Flow Prompts</h1><div class="count"><b id="done">0</b> / <span id="total">0</span> finished</div></div>
+  <div class="bar"><div id="bar"></div></div>
+</div>
+
+<main>
+  <p class="hint">Copy a prompt → Flow opens → paste and generate → come back and tap Finish.</p>
+  <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
+  <input class="search" id="search" placeholder="Search prompts by number or word…" inputmode="search" autocomplete="off">
+  <div class="tools">
+    <button class="chip main" data-act="upload">📄 Upload PDF</button>
+    <button class="chip" data-act="flow">🌐 Flow</button>
+    <button class="chip" data-act="flowmode" id="modeBtn">Flow opens: App</button>
+    <button class="chip" data-act="copyall">📋 Copy All</button>
+    <button class="chip" data-act="jump" id="jumpBtn">🔢 Jump</button>
+    <button class="chip" data-act="hide" id="hideBtn">Hide finished</button>
+    <button class="chip" data-act="reset">↻ Reset</button>
+  </div>
+  <div id="pdfInfo">Current prompts: <span id="pdfName">Built-in prompts</span></div>
+  <div id="pdfMsg"></div>
+  <section id="jump"><h2>Jump to a group of 10 prompts</h2><div class="grid" id="grid"></div></section>
+  <div id="list"></div>
+  <footer>Flow Prompt Manager</footer>
+</main>
+
+<div class="dock"><div class="in">
+  <button class="up" data-act="top" aria-label="Back to top">↑</button>
+  <button class="lab" id="lab" data-act="goto"></button>
+  <button class="go" id="go" data-act="barcopy"></button>
+</div></div>
+<div id="toast"></div>
+
+<script type="module">
+import DEFAULT_PROMPTS from "./default-prompts.js";
+import { extractPrompts } from "./parser.js";
+
+const FLOW_URL = "https://flow.google/";
+const FLOW_PACKAGE = "com.google.android.apps.labs.whisk";   // Google Flow app on Android
+const FLOW_INTENT = `intent://flow.google/#Intent;scheme=https;package=${FLOW_PACKAGE};end`;
+const $ = id => document.getElementById(id);
+
+// ---------- saved data ----------
+function load(key, fallback){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } }
+function save(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); return true; }catch(e){ return false; } }
+
+const saved = load("flowPromptData", null);
+let prompts = saved && Array.isArray(saved.prompts) && saved.prompts.length ? saved.prompts : DEFAULT_PROMPTS;
+let listName = saved && saved.prompts && saved.prompts.length ? (saved.name || "Uploaded PDF") : "Built-in prompts";
+let state = load("flowPromptState", {});
+let hideDone = load("flowHideFinished", false);
+const isAndroid = /Android/i.test(navigator.userAgent);
+let flowMode = load("flowMode", isAndroid ? "app" : "web");   // "app" or "web"
+const saveState = () => save("flowPromptState", state);
+
+// ---------- helpers ----------
+let toastTimer;
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove("show"), 2400); }
+const esc = s => s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const isDone = n => state[n] === "finished";
+const statusText = n => state[n]==="finished" ? "Finished" : state[n]==="copied" ? "Copied" : "Ready";
+const pad = n => String(n).padStart(2, "0");
+
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch(e){
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      const ok = document.execCommand("copy"); ta.remove(); return ok;
+    }catch(e2){ return false; }
+  }
+}
+function openFlow(){
+  if(flowMode === "app" && isAndroid){
+    let left = false;
+    const onHide = () => { if(document.hidden) left = true; };
+    document.addEventListener("visibilitychange", onHide);
+    location.href = FLOW_INTENT;
+    setTimeout(() => {
+      document.removeEventListener("visibilitychange", onHide);
+      if(!left) toast("Flow app did not open. Tap “Flow opens: App” to use the website instead.");
+    }, 1800);
+    return;
+  }
+  const w = window.open(FLOW_URL, "_blank");
+  if(!w) toast("Tap 🌐 Flow to open Flow.");
+}
+
+// ---------- split each prompt into "the scene" and the repeated style rules ----------
+let parts = new Map();
+function commonTail(list){
+  if(list.length < 5) return "";
+  const ref = list[list.length-1].prompt;
+  const lens = list.map(x => { const a = x.prompt; let i = 0; while(i < a.length && i < ref.length && a[a.length-1-i] === ref[ref.length-1-i]) i++; return i; }).sort((a,b)=>a-b);
+  const L = lens[Math.floor(lens.length * 0.2)];
+  if(L < 100) return "";
+  let idx = ref.length - L;
+  if(ref.slice(idx-2, idx) !== ". "){ const k = ref.indexOf(". ", idx); if(k < 0) return ""; idx = k + 2; }
+  const tail = ref.slice(idx);
+  return tail.length >= 80 ? tail : "";
+}
+function buildParts(){
+  parts = new Map();
+  const tail = commonTail(prompts);
+  for(const x of prompts){
+    if(tail && x.prompt.endsWith(tail) && x.prompt.length > tail.length + 10) parts.set(x.number, { head: x.prompt.slice(0, -tail.length).trim(), tail });
+    else parts.set(x.number, { head: x.prompt, tail: "" });
+  }
+}
+
+// ---------- drawing ----------
+function cardHTML(x){
+  const n = x.number, p = parts.get(n);
+  return `<article class="card ${state[n]||""}" data-card="${n}"${hideDone && isDone(n) ? " hidden" : ""}>
+<div class="top"><div class="num"><small>Prompt</small>${pad(n)}</div><div class="status"><i class="dot"></i><span class="st">${statusText(n)}</span></div></div>
+<p class="txt">${esc(p.head)}</p>
+${p.tail ? `<details><summary>Style notes</summary><p class="txt tail">${esc(p.tail)}</p></details>` : ""}
+<div class="actions"><button class="btn copy" data-act="copy" data-n="${n}">📋 Copy</button><button class="btn flow" data-act="flow">🌐 Flow</button><button class="btn fin" data-act="finish" data-n="${n}">${isDone(n) ? "↩ Undo" : "✓ Finish"}</button></div>
+</article>`;
+}
+function nextTarget(){ return prompts.find(x => !isDone(x.number)); }
+
+function updateBar(){
+  const t = nextTarget(), lab = $("lab"), go = $("go");
+  if(!t){ lab.innerHTML = `<small>All done</small><b>🎉 Every prompt finished</b>`; lab.dataset.n = ""; go.textContent = "Finished"; go.disabled = true; go.className = "go"; return; }
+  lab.dataset.n = t.number; go.disabled = false;
+  if(state[t.number] === "copied"){
+    lab.innerHTML = `<small>Copied. Paste it in Flow</small><b>Prompt ${pad(t.number)}</b>`;
+    go.textContent = "✓ Finish"; go.dataset.act = "barfinish"; go.className = "go fin";
+  }else{
+    lab.innerHTML = `<small>Next up</small><b>Prompt ${pad(t.number)}</b>`;
+    go.textContent = "📋 Copy + Flow"; go.dataset.act = "barcopy"; go.className = "go";
+  }
+}
+function updateJump(){
+  const size = 10, cells = [];
+  for(let i = 0; i < prompts.length; i += size){
+    const grp = prompts.slice(i, i + size), d = grp.filter(x => isDone(x.number)).length;
+    const cls = d === grp.length ? "full" : d > 0 ? "part" : "";
+    cells.push(`<button class="cell ${cls}" data-act="goto" data-n="${(grp.find(x => !isDone(x.number)) || grp[0]).number}" data-close="1"><span>${grp[0].number}–${grp[grp.length-1].number}</span><small>${d}/${grp.length}</small></button>`);
+  }
+  $("grid").innerHTML = cells.join("");
+}
+function stats(){
+  const finished = prompts.filter(x => isDone(x.number)).length;
+  $("done").textContent = finished; $("total").textContent = prompts.length;
+  $("bar").style.width = prompts.length ? `${finished / prompts.length * 100}%` : "0%";
+  $("pdfName").textContent = `${listName} (${prompts.length} prompts)`;
+  $("modeBtn").textContent = flowMode === "app" ? "Flow opens: App" : "Flow opens: Website";
+  $("hideBtn").classList.toggle("on", hideDone);
+  $("hideBtn").textContent = hideDone ? "Show finished" : "Hide finished";
+  updateBar();
+  if($("jump").classList.contains("open")) updateJump();
+}
+function render(){
+  buildParts();
+  const q = ($("search").value || "").trim().toLowerCase();
+  const list = prompts.filter(x => !q || String(x.number).includes(q) || x.prompt.toLowerCase().includes(q));
+  $("list").innerHTML = list.map(cardHTML).join("") || `<div class="empty">No prompts found.</div>`;
+  stats();
+}
+function updateCard(n){
+  const el = document.querySelector(`[data-card="${n}"]`);
+  if(el){
+    el.className = "card " + (state[n] || "");
+    el.querySelector(".st").textContent = statusText(n);
+    el.querySelector('[data-act="finish"]').textContent = isDone(n) ? "↩ Undo" : "✓ Finish";
+    el.hidden = hideDone && isDone(n);
+  }
+  stats();
+}
+function goToCard(n){
+  if(!n) return;
+  let el = document.querySelector(`[data-card="${n}"]`);
+  if(!el || el.hidden){ $("search").value = ""; if(hideDone && isDone(n)){ hideDone = false; save("flowHideFinished", false); } render(); el = document.querySelector(`[data-card="${n}"]`); }
+  if(!el) return;
+  el.scrollIntoView({ block: "start" });
+  el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1200);
+}
+
+// ---------- actions ----------
+async function doCopy(n){
+  const x = prompts.find(p => p.number === n); if(!x) return;
+  const ok = await copyText(x.prompt);
+  if(!ok){ toast("Copy failed. Press and hold the text to copy it."); return; }
+  if(!isDone(n)) state[n] = "copied";
+  saveState(); updateCard(n);
+  toast(`Prompt ${pad(n)} copied. Paste it in Flow.`);
+  openFlow();
+}
+function doFinish(n, advance){
+  state[n] = isDone(n) ? "" : "finished";
+  saveState(); updateCard(n);
+  if(advance){ const t = nextTarget(); if(t) goToCard(t.number); }
+}
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]");
+  if(!b) return;
+  const act = b.dataset.act, n = Number(b.dataset.n);
+  switch(act){
+    case "copy": await doCopy(n); break;
+    case "finish": doFinish(n, false); break;
+    case "flow": openFlow(); break;
+    case "flowmode": flowMode = flowMode === "app" ? "web" : "app"; save("flowMode", flowMode); stats(); toast(flowMode === "app" ? "Copy will open the Flow app." : "Copy will open the Flow website."); break;
+    case "barcopy": { const t = nextTarget(); if(t) await doCopy(t.number); break; }
+    case "barfinish": { const t = nextTarget(); if(t) doFinish(t.number, true); break; }
+    case "goto": if(b.dataset.close) $("jump").classList.remove("open"); goToCard(n); break;
+    case "top": window.scrollTo(0, 0); break;
+    case "jump": $("jump").classList.toggle("open"); if($("jump").classList.contains("open")){ updateJump(); $("jump").scrollIntoView({ block: "start" }); } break;
+    case "hide": hideDone = !hideDone; save("flowHideFinished", hideDone); render(); break;
+    case "reset": if(confirm("Reset all Flow Prompt progress?")){ state = {}; saveState(); render(); toast("Progress reset."); } break;
+    case "copyall": {
+      const text = prompts.map(x => `PROMPT ${pad(x.number)}\n${x.prompt}`).join("\n\n");
+      toast((await copyText(text)) ? "All prompts copied." : "Copy failed. Use the Copy button on each prompt.");
+      break;
+    }
+    case "upload": $("pdfFile").click(); break;
+  }
+});
+$("search").addEventListener("input", render);
+
+// ---------- upload PDF ----------
+$("pdfFile").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if(file) await importPDF(file);
+});
+async function importPDF(file){
+  const msg = t => { $("pdfMsg").textContent = t; };
+  msg("Reading PDF…");
+  try{
+    const pdfjsLib = await import("./lib/pdf.min.js");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("./lib/pdf.worker.min.js", import.meta.url).href;
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    let raw = "";
+    for(let p = 1; p <= pdf.numPages; p++){
+      msg(`Reading page ${p} of ${pdf.numPages}…`);
+      const content = await (await pdf.getPage(p)).getTextContent();
+      raw += content.items.map(i => i.str).join(" ") + "\n";
+    }
+    const found = extractPrompts(raw);
+    if(!found.length){ msg("No Flow prompts found in this PDF."); toast("No Flow prompts found in this PDF."); return; }
+    const hasProgress = Object.values(state).some(Boolean);
+    if(hasProgress && !confirm(`Load ${found.length} prompts from this PDF? Your current progress will be reset.`)){
+      msg("Upload cancelled."); return;
+    }
+    prompts = found; listName = file.name; state = {};
+    save("flowPromptData", { name: file.name, prompts: found }); saveState();
+    $("search").value = "";
+    render();
+    msg(`Loaded ${found.length} prompts`);
+    window.scrollTo(0, 0);
+  }catch(err){
+    console.error(err);
+    msg("PDF failed to load. Try another PDF.");
+    toast("Couldn't read this PDF.");
+  }
+}
+
+render();
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("service-worker.js").catch(()=>{}); }
+</script>
+</body></html>
